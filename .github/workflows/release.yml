@@ -1,0 +1,31 @@
+name: Release Workflow
+
+permissions:
+  packages: write
+  contents: write
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: Release Job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: stable
+      - name: Go Releaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
