@@ -8,16 +8,18 @@ import (
 	"time"
 )
 
-func checkForUpdate(owner string, repo string, currentVersion string) (string, error) {
+// fetchLatestReleaseVersion returns the tag_name of the release in
+// the given repository that is marked as latest.
+func fetchLatestReleaseVersion(owner string, repo string) (string, error) {
 	type GitHubRelease struct {
 		TagName string `json:"tag_name"`
 	}
 
 	client := http.Client{
-		Timeout: time.Second * 5, // Timeout after 2 seconds
+		Timeout: time.Second * 5,
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases", owner, repo)
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -29,8 +31,10 @@ func checkForUpdate(owner string, repo string, currentVersion string) (string, e
 		return "", err
 	}
 
-	if res.Body != nil {
-		defer res.Body.Close()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected response code while fetching <%s>: %d", url, res.StatusCode)
 	}
 
 	body, err := io.ReadAll(res.Body)
@@ -38,15 +42,11 @@ func checkForUpdate(owner string, repo string, currentVersion string) (string, e
 		return "", err
 	}
 
-	var releases []GitHubRelease
+	var release GitHubRelease
 
-	if err := json.Unmarshal(body, &releases); err != nil {
+	if err := json.Unmarshal(body, &release); err != nil {
 		return "", err
 	}
 
-	if releases[0].TagName[1:] != version {
-		return releases[0].TagName[1:], nil
-	}
-
-	return "", nil
+	return release.TagName, nil
 }
