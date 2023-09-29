@@ -5,12 +5,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"time"
 )
 
-// fetchLatestReleaseVersion returns the tag_name of the release in
+var releaseTagMatcher = regexp.MustCompile(`^v(\d+)(\.\d+){0,2}$`)
+
+func isReleaseTag(tag string) bool {
+	return releaseTagMatcher.MatchString(tag)
+}
+
+// fetchLatestReleaseTag returns the tag_name of the release in
 // the given repository that is marked as latest.
-func fetchLatestReleaseVersion(owner string, repo string) (string, error) {
+func fetchLatestReleaseTag(owner string, repo string) (string, error) {
 	type GitHubRelease struct {
 		TagName string `json:"tag_name"`
 	}
@@ -46,6 +53,10 @@ func fetchLatestReleaseVersion(owner string, repo string) (string, error) {
 
 	if err := json.Unmarshal(body, &release); err != nil {
 		return "", err
+	}
+
+	if !isReleaseTag(release.TagName) {
+		return "", fmt.Errorf("malformed tag on latest release: %s", release.TagName)
 	}
 
 	return release.TagName, nil
